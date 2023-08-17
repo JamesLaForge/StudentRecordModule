@@ -233,23 +233,30 @@ public class userData {
     }
 
 
-    public ResultSet selectAssessmentsByTeacherName(String teacherName) throws SQLException {
-        final String SELECT_ASSESSMENTS_BY_TEACHER_NAME = 
-            "SELECT DISTINCT a.assessment_name, a.date, a.type " +
-            "FROM assessmentName a " +
-            "JOIN assessments s ON a.assessment_name = s.assessment_name " +
+    public ResultSet selectScoresByAssessmentAndTeacher(String assessmentName, String teacherName) throws SQLException {
+        final String SELECT_SCORES_BY_ASSESSMENT_AND_TEACHER = 
+            "SELECT u.id AS student_id, u.firstName, u.lastName, s.score " +
+            "FROM assessments s " +
             "JOIN users u ON s.userID = u.id " +
             "JOIN students st ON u.username = st.username " +
-            "WHERE st.teacher = ? AND a.type = 'Local' " +
-            "ORDER BY a.assessment_name, a.date";
-            
-                
-        PreparedStatement statement = connection.prepareStatement(SELECT_ASSESSMENTS_BY_TEACHER_NAME);
-        statement.setString(1, teacherName);
+            "WHERE s.assessment_name = ? AND st.teacher = ? " +
+            "ORDER BY u.firstName, u.lastName";
+
+        PreparedStatement statement = connection.prepareStatement(SELECT_SCORES_BY_ASSESSMENT_AND_TEACHER);
+        statement.setString(1, assessmentName);
+        statement.setString(2, teacherName);
         return statement.executeQuery();
     }
 
 
+    public ResultSet selectLocalAssessmentsForTeacher () throws SQLException {
+        final String SELECT_ALL_LOCAL_ASSESSMETNS = "SELECT assessment_name, date, type " +
+                "FROM assessmentName " +
+                "Where type = 'Local' " +
+                "ORDER BY assessment_name, date";
+                
+        return connection.createStatement().executeQuery(SELECT_ALL_LOCAL_ASSESSMETNS);
+    }
 
 
     

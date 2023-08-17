@@ -2190,7 +2190,31 @@ public class StudentRecordsModule extends javax.swing.JFrame {
     }//GEN-LAST:event_newAssessDateBox1ActionPerformed
 
     private void newAssessSaveButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_newAssessSaveButton1ActionPerformed
-        
+    
+    String dateStr = newAssessDateBox1.getText();
+
+    if (!isValidDate(dateStr)) {
+        JOptionPane.showMessageDialog(rootPane, "Please enter a valid date in the format YYYY-MM-DD.", "Date Format Error", JOptionPane.ERROR_MESSAGE);
+        return;
+    }
+
+    try {
+        AssessmentName assessmentName = new AssessmentName();
+        assessmentName.setAssessment_name(newAssessNameBox1.getText());
+        assessmentName.setDate(dateStr);
+        assessmentName.setType(newAssessTypeBox1.getSelectedItem().toString());
+
+        int assessmentNameID = userData.addAssessmentName(assessmentName);
+
+        newAssessNameBox1.setText("");
+        newAssessDateBox1.setText("YYYY-MM-DD");
+        newAssessTypeBox1.setSelectedIndex(0);
+        assessList1.setModel(populateLocalAssessTeacherList());
+    } catch (SQLException ex) {
+        System.err.println(ex);
+        JOptionPane.showMessageDialog(rootPane, "Unable to save assessment.", "SQL Error", JOptionPane.ERROR_MESSAGE);
+    }
+
     }//GEN-LAST:event_newAssessSaveButton1ActionPerformed
 
     private void newAssessCancelButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_newAssessCancelButton1ActionPerformed
@@ -2199,30 +2223,57 @@ public class StudentRecordsModule extends javax.swing.JFrame {
 
     private void assessDeleteButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_assessDeleteButton1ActionPerformed
         
+                                                      
+        
+        AssessmentName selectedAssessment = assessList1.getSelectedValue();
+            if (selectedAssessment == null) {
+                JOptionPane.showMessageDialog(rootPane, "Please select an assessment to delete.", "Selection Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            String selectedAssessmentName = selectedAssessment.getAssessment_name();
+
+            int confirm = JOptionPane.showConfirmDialog(rootPane, "Are you sure you want to delete this assessment?", "Confirm Deletion", JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                try {
+                    userData.deleteAssessmentName(selectedAssessmentName);
+                    // Refresh the list after deletion
+                    assessList1.setModel(populateLocalAssessTeacherList());
+                    JOptionPane.showMessageDialog(rootPane, "Assessment deleted successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                } catch (SQLException ex) {
+                    System.err.println(ex);
+                    JOptionPane.showMessageDialog(rootPane, "Unable to delete assessment.", "SQL Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }  
     }//GEN-LAST:event_assessDeleteButton1ActionPerformed
 
     private void teacherAssessIntComponentShown(java.awt.event.ComponentEvent evt) {//GEN-FIRST:event_teacherAssessIntComponentShown
         
-        assessList1.setModel(populateTeacherAssessList(teacherName));
+        assessList1.setModel(populateLocalAssessTeacherList());
     }//GEN-LAST:event_teacherAssessIntComponentShown
 
     private void tEnterScoresButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_tEnterScoresButtonActionPerformed
-        scoresAssessList1.setModel(populateTeacherAssessList(teacherName));
+        scoresAssessList1.setModel(populateLocalAssessTeacherList());
         teacherEnterScoresInt.setVisible(true);
     }//GEN-LAST:event_tEnterScoresButtonActionPerformed
 
     private void scoresAssessList1ValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_scoresAssessList1ValueChanged
-        AssessmentName selectedAssessment = scoresAssessList1.getSelectedValue();
-            if (selectedAssessment != null) {
-                try {
-                    scoresGradesTable1.setModel(populateStudentScoresTable(selectedAssessment.getAssessment_name()));
-                } catch (SQLException ex) {
-                    Logger.getLogger(StudentRecordsModule.class.getName()).log(Level.SEVERE, null, ex);
-                    System.err.println(ex);
-                    JOptionPane.showMessageDialog(
-                            rootPane, "Unable to get list of student scores.", "SQL Error", JOptionPane.ERROR_MESSAGE);
-                        }
+        AssessmentName assessmentObj = scoresAssessList1.getSelectedValue();
+    
+    if (assessmentObj != null) {
+        String selectedAssessmentName = assessmentObj.getAssessment_name();
+        
+        
+        if (selectedAssessmentName != null && !selectedAssessmentName.isEmpty()) {
+            try {
+                scoresGradesTable1.setModel(populateTeacherStudentScoresTable(selectedAssessmentName, userData.getTeacherFullNameById(userID)));
+            } catch (SQLException ex) {
+                Logger.getLogger(StudentRecordsModule.class.getName()).log(Level.SEVERE, null, ex);
+                System.err.println(ex);
+                JOptionPane.showMessageDialog(
+                        rootPane, "Unable to get list of student scores.", "SQL Error", JOptionPane.ERROR_MESSAGE);
             }
+        }
+    }
         
     }//GEN-LAST:event_scoresAssessList1ValueChanged
 
@@ -2631,28 +2682,64 @@ public class StudentRecordsModule extends javax.swing.JFrame {
         return listModel;
     }
     
-    //Creates a list of All Assessments related to a given teacher
-    private ListModel<AssessmentName> populateTeacherAssessList(String teacherName) {
-        DefaultListModel<AssessmentName> listModel = new DefaultListModel<>();
-
+    
+    //Creates a list of All Assessments
+    private ListModel<AssessmentName> populateLocalAssessTeacherList() {
+        DefaultListModel listModel = new DefaultListModel();
         try {
-            teacherName = userData.getTeacherFullNameById(userID);
-            ResultSet rs = userData.selectAssessmentsByTeacherName(teacherName);
-            while (rs.next()) {
+            ResultSet AssessmentName = userData.selectLocalAssessmentsForTeacher();
+            while (AssessmentName.next()) {
                 AssessmentName assessmentName = new AssessmentName();
-                assessmentName.setAssessment_name(rs.getString("assessment_name"));
-                assessmentName.setDate(rs.getString("date"));
-                assessmentName.setType(rs.getString("type"));
+                assessmentName.setAssessment_name(AssessmentName.getString("assessment_name"));
+                assessmentName.setDate(AssessmentName.getString("date"));
+                assessmentName.setType(AssessmentName.getString("type"));
+                
+                
+                
                 listModel.addElement(assessmentName);
             }
         } catch (SQLException ex) {
             System.err.println(ex);
             JOptionPane.showMessageDialog(
-                    rootPane, "Unable to get list of assessments for the teacher.", "SQL Error", JOptionPane.ERROR_MESSAGE);
+                    rootPane, "Unable to get list of student assessments.", "SQL Error", JOptionPane.ERROR_MESSAGE);
         }
-
+        
         return listModel;
     }
+    
+    //Creates a list student scores related to a given teacher on an assessment
+    private DefaultTableModel populateTeacherStudentScoresTable(String assessmentName, String teacherName) throws SQLException {
+        // Define column names
+        String[] columnNames = {"Student Name", "Score"};
+        DefaultTableModel tableModel = new DefaultTableModel(columnNames, 0); // Initial row count is set to 0
+
+        ResultSet resultSet = userData.selectScoresByAssessmentAndTeacher(assessmentName, teacherName);
+        boolean hasData = false;  // Track if data exists
+
+        while (resultSet.next()) {
+            hasData = true;
+            String studentName = resultSet.getString("firstName") + " " + resultSet.getString("lastName");
+            int score = resultSet.getInt("score");
+            Object[] row = {studentName, score};
+            tableModel.addRow(row);
+        }
+
+        resultSet.close();
+
+        // If no scores, fetch only the students of the given teacher
+        if (!hasData) {
+            resultSet = userData.getStudentsByTeacherName(teacherName);
+            while (resultSet.next()) {
+                String studentName = resultSet.getString("firstName") + " " + resultSet.getString("lastName");
+                Object[] row = {studentName, "N/A"}; // Using "N/A" as a placeholder value
+                tableModel.addRow(row);
+            }
+            resultSet.close();
+        }
+
+        return tableModel;
+    }
+
 
 
     
